@@ -49,6 +49,24 @@ any reason (and has not subsequently run "sudo -K" or added a workaround of
 exploit.  OS X 10.7.5 is also vulnerable unless the security update has been
 installed.
 
+-------
+License
+-------
+
+The license is "BSD" + "MIT" as shown on Apple's Open Source site for the sudo
+sources.  The LICENSE file from within the sudo-1.7.10p7.tar.gz file has been
+included in this directory as LICENSE.txt for convenience.
+
+Please take note of the license's disclaimer of liability for this software:
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
 ----------
 References
 ----------
