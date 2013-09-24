@@ -36,7 +36,7 @@ case "$mydir" in
     ;;
 esac
 
-osmaj="$(sysctl -n kern.osrelease | cut -d. -f1)"
+: "${osmaj:=$(sysctl -n kern.osrelease | cut -d. -f1)}"
 if [ $osmaj -lt 8 ]; then
   echo "error: build os must be at least 10.4" >&2
   exit 1
@@ -71,7 +71,13 @@ if [ $osmaj -lt 11 ]; then
 fi
 if [ $osmaj -lt 9 ]; then
   # The OS X 10.4 compiler does not support -fstack-protector in any form
-  SUDO_CONFIGURE="$SUDO_CONFIGURE"'  --disable-hardening'
+  # and neither does the 10.4 linker support -pie
+  SUDO_CONFIGURE="$SUDO_CONFIGURE"'  --disable-hardening --disable-pie'
+  # Also add --disable-env-reset because although env reset by default
+  # is not actually effective until the version of sudo shipped with OS X 10.6
+  # it is activated by the OS X 10.5 /etc/sudoers file so env reset is
+  # effectively active starting with OS X 10.5 and need only be disabled for 10.4
+  SUDO_CONFIGURE="$SUDO_CONFIGURE"'  --disable-env-reset'
 fi
 
 DOWNLOADS="$mydir/sources"
@@ -84,9 +90,13 @@ unset CPATH
 unset LIBRARY_PATH
 unset DYLD_LIBRARY_PATH
 unset MANPATH
-export LDFLAGS="$LDFLAGS -Wl,-S,-x"
+export LDFLAGS="$LDFLAGS -Wl,-S,-x,-dead_strip"
 if [ $osmaj -ge 9 ]; then
-  LDFLAGS="$LDFLAGS -Wl,-dead_strip_dylibs,-dead_strip,-exported_symbols_list,/dev/null"
+  LDFLAGS="$LDFLAGS -Wl,-dead_strip_dylibs,-exported_symbols_list,/dev/null"
+else
+  # The OS X 10.4 linker needs at least one symbol in the file to strip
+  # and it also needs uninteresting warnings suppressed
+  LDFLAGS="$LDFLAGS -Wl,-w,-exported_symbols_list,.symbols_list"
 fi
 
 strip1=
@@ -214,6 +224,9 @@ if [ ! -e "$BUILD/.configured" ]; then
   rm -rf "$BUILD"
   mkdir -p "$BUILD"
   cd "$BUILD"
+  if [ $osmaj -lt 9 ]; then
+    echo __mh_execute_header > .symbols_list
+  fi
   "$DOWNLOADS/$sudodir/configure" $SUDO_CONFIGURE
   echo "Stripping CONFIGURE_ARGS to match Apple sudo installation" >&2
   perl -i -pe 's/"[^"]+"/""/ if /^#define CONFIGURE_ARGS/' sudo_usage.h
