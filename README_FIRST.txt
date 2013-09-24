@@ -67,6 +67,23 @@ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+--------
+Building
+--------
+
+The build script will extract, patch, configure and make a new sudo executable
+suitable for use on the current system.
+
+----------
+Installing
+----------
+
+The build script emits instructions on how to install the new sudo executable
+when it's finished building.  Doing so WILL REPLACE YOUR EXISTING sudo!!!
+
+A backup of the previously installed sudo executable is highly recommended
+before proceeding!!!
+
 ----------
 References
 ----------

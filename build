@@ -1,0 +1,252 @@
+#!/bin/bash
+
+#  build -- build version of sudo with Apple-specific patches applied
+#  Copyright (C) 2013 Kyle J. McKay.  All rights reserved.
+#
+#  Permission to use, copy, modify, and distribute this software for any
+#  purpose with or without fee is hereby granted, provided that the above
+#  copyright notice and this permission notice appear in all copies.
+#
+#  THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+#  WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+#  ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+#  WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+#  ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+#  OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+# build version 1.0
+
+myname="$0"
+while [ -L "$myname" ]; do
+  oldname="$myname"
+  myname="$(readlink "$myname")"
+  case "$myname" in /*) :;; *)
+    myname="$(dirname "$oldname")/$myname"
+  esac
+done
+unset oldname
+mydir="$(cd "$(dirname "$myname")" && pwd -P)"
+myname="$(basename "$myname")"
+
+case "$mydir" in
+  *' '*)
+    echo "error: build directory path contains a space: '$mydir'" >&2
+    exit 1
+    ;;
+esac
+
+osmaj="$(sysctl -n kern.osrelease | cut -d. -f1)"
+if [ $osmaj -lt 8 ]; then
+  echo "error: build os must be at least 10.4" >&2
+  exit 1
+fi
+
+# exit on error
+trap 'echo "FAILED COMMAND ($?): ${BASH_COMMAND:-Run $0 using bash -v for details}"' ERR
+set -o errexit
+
+cd "$mydir"
+umask 022
+
+SUDO174p10='http://www.sudo.ws/sudo/dist/sudo-1.7.10p7.tar.gz'
+SUDO174p10_MD5=9faa5ceaf23cca0468d0f5d211bac6e4
+SUDO174p10_SHA1=b5beb1a470d1f03b3940aff612f5089244dd773a
+
+SUDO_TGZ="$SUDO174p10"
+SUDO_MD5="$SUDO174p10_MD5"
+SUDO_SHA1="$SUDO174p10_SHA1"
+
+# Match Apple's sudo man pages use of the man macros for maximum compatibility
+# Note that only 10.6.x embeds /etc/sudoers, all other OS X versions embed /private/etc/sudoers
+SUDO_CONFIGURE='--prefix=/usr --sysconfdir=/private/etc --with-timedir=/var/db/sudo --with-man'
+SUDO_CONFIGURE="$SUDO_CONFIGURE"' --with-noexec=no --with-bsm-audit --with-libraries=bsm --disable-static'
+# Since the OS X sudo installation does not include sudoreplay there's little point in allowing io logging
+SUDO_CONFIGURE="$SUDO_CONFIGURE"' --without-iologdir'
+if [ $osmaj -lt 11 ]; then
+  # Prior to OS X 10.7 --disable-setreuid, --with-env-editor and --with-password-timeout=0 were used
+  SUDO_CONFIGURE="$SUDO_CONFIGURE"' --disable-setreuid --with-env-editor --with-password-timeout=0'
+  # Prior to OS X 10.7 the version of sudo used logged by default to the local2 facility so emulate that
+  SUDO_CONFIGURE="$SUDO_CONFIGURE"' --with-logfac=local2' # otherwise current default is authpriv facility
+fi
+if [ $osmaj -lt 9 ]; then
+  # The OS X 10.4 compiler does not support -fstack-protector in any form
+  SUDO_CONFIGURE="$SUDO_CONFIGURE"'  --disable-hardening'
+fi
+
+DOWNLOADS="$mydir/sources"
+BUILD="$mydir/sudo"
+
+PATH="$(getconf PATH)"
+export PATH
+
+unset CPATH
+unset LIBRARY_PATH
+unset DYLD_LIBRARY_PATH
+unset MANPATH
+export LDFLAGS="$LDFLAGS -Wl,-S,-x"
+if [ $osmaj -ge 9 ]; then
+  LDFLAGS="$LDFLAGS -Wl,-dead_strip_dylibs,-dead_strip,-exported_symbols_list,/dev/null"
+fi
+
+strip1=
+if ! (tar --strip-path=1 || : ) 2>&1 | grep -Eqi 'unrecognized option|not supported'; then
+  strip1=--strip-path=1
+elif ! (tar --strip-components=1 || : ) 2>&1 | grep -Eqi 'unrecognized option|not supported'; then
+  strip1=--strip-components=1
+fi
+if [ -z "$strip1" ]; then
+  echo "error: Cannot figure out tar option to strip top level path" >&2
+  exit 1
+fi
+
+AGENT1='Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0)'
+AGENT2='curl/7.25.0 (unknown-unknown-unknown) libcurl/7.25.0'
+CURLOPT="--fail --location --connect-timeout 15 --speed-limit 10240"
+CURLOPT0="$CURLOPT -H 'User-Agent:'"
+CURLOPT1="$CURLOPT -H 'User-Agent: $AGENT1'"
+CURLOPT2="$CURLOPT -H 'User-Agent: $AGENT2'"
+
+die()
+{
+  echo "Fatal: $*" >&2
+  exit 125;
+}
+
+getmd5()
+{
+  openssl dgst -md5 < "$1" 2>/dev/null | sed -e 's/^[^ ][^ ]* //'
+}
+
+getsha1()
+{
+  openssl dgst -sha1 < "$1" 2>/dev/null | sed -e 's/^[^ ][^ ]* //'
+}
+
+# Usage: downloadfile URL MD5 SHA1
+# -> output is full path to downloaded file (will be in $DOWNLOADS)
+downloadfile()
+{
+  local url file md5 sha1 bad
+  url="$1"
+  file="$(basename "$url")"
+  md5="$2"
+  sha1="$3"
+  local checkmd5 checksha1
+  if [ ! -d "$DOWNLOADS" ]; then
+    mkdir "$DOWNLOADS"
+  fi
+  if [ -e "$DOWNLOADS/$file" ]; then
+    checkmd5="$(getmd5 "$DOWNLOADS/$file")"
+    checksha1="$(getsha1 "$DOWNLOADS/$file")"
+    if [ "$md5" != "$checkmd5" -o "$sha1" != "$checksha1" ]; then
+      echo "Wrong md5/sha1 checksum for $DOWNLOADS/$file -- removing" >&2
+      chmod u+w "$DOWNLOADS/$file"
+      rm "$DOWNLOADS/$file"
+    fi
+  fi
+  if [ ! -e "$DOWNLOADS/$file" ]; then
+    eval "curl $CURLOPT0 -o '$DOWNLOADS/$file' '$url'"
+  fi
+  if [ ! -e "$DOWNLOADS/$file" ]; then
+    echo "Failed to download $url" >&2
+    return 1
+  fi
+  checkmd5="$(getmd5 "$DOWNLOADS/$file")"
+  checksha1="$(getsha1 "$DOWNLOADS/$file")"
+  bad=
+  if [ "$md5" != "$checkmd5" ]; then
+    bad=1
+    echo "Wrong md5 checksum $checkmd5 (expected $md5) for $DOWNLOADS/$file" >&2
+  fi
+  if [ "$sha1" != "$checksha1" ]; then
+    bad=1
+    echo "Wrong sha1 checksum $checksha1 (expected $sha1) for $DOWNLOADS/$file" >&2
+  fi
+  if [ -n "$bad" ]; then
+    echo "Checksum verifcation failed for $url" >&2
+    return 1
+  fi
+  echo "$DOWNLOADS/$file"
+  return 0
+}
+
+# return a suitable directory name for a tarball
+tgzdir()
+{
+  local tb
+  tb="$(basename "$1")"
+  tb="${tb%.gz}"
+  tb="${tb%.bz2}"
+  tb="${tb%.tar}"
+  tb="${tb%.tgz}"
+  echo "$tb"
+}
+
+echo "Fetching/verifying sudo sources tarball" >&2
+sudotgz="$(downloadfile "$SUDO_TGZ" "$SUDO_MD5" "$SUDO_SHA1")"
+sudodir="$(tgzdir "$sudotgz")"
+
+if [ ! -e "$DOWNLOADS/$sudodir/.extracted" ]; then
+  echo "Extracting sudo sources from tarball" >&2
+  rm -rf "$DOWNLOADS/$sudodir" "$BUILD"
+  mkdir "$DOWNLOADS/$sudodir"
+  tar -xzf "$sudotgz" -C "$DOWNLOADS/$sudodir" "$strip1"
+  touch "$DOWNLOADS/$sudodir/.extracted"
+fi
+
+if [ ! -e "$DOWNLOADS/$sudodir/.patched" ]; then
+  [ -e "$DOWNLOADS/$sudodir/.extracted" ] || die "bad extraction"
+  echo "Patching sudo sources with Apple tweaks" >&2
+  rm -rf "$BUILD"
+  cd "$DOWNLOADS/$sudodir"
+  for pf in "$mydir/patches/"00*.patch.txt; do
+    echo "$(basename "$pf")" >&2
+    patch -p1 < "$pf"
+  done
+  touch "$DOWNLOADS/$sudodir/.patched"
+fi
+cd "$mydir"
+
+if [ ! -e "$BUILD/.configured" ]; then
+  [ -e "$DOWNLOADS/$sudodir/.patched" ] || die "bad patching operation"
+  echo "Configuring sudo build for OS X" >&2
+  rm -rf "$BUILD"
+  mkdir -p "$BUILD"
+  cd "$BUILD"
+  "$DOWNLOADS/$sudodir/configure" $SUDO_CONFIGURE
+  echo "Stripping CONFIGURE_ARGS to match Apple sudo installation" >&2
+  perl -i -pe 's/"[^"]+"/""/ if /^#define CONFIGURE_ARGS/' sudo_usage.h
+  echo "Enabling HAVE_TCSETPGRP which is not set properly with --without-iologdir" >&2
+  perl -i -pe 's,^/[^/]+/,#define HAVE_TCSETPGRP 1, if /HAVE_TCSETPGRP/' config.h
+  touch "$BUILD/.configured"
+fi
+cd "$mydir"
+
+if [ ! -e "$BUILD/.built" ]; then
+  [ -e "$BUILD/.configured" ] || die "bad configure operation"
+  echo "Making sudo build for OS X" >&2
+  make -w -C "$BUILD"
+  [ -x "$BUILD/sudo" ] || die "build failed"
+  touch "$BUILD/.built"
+fi
+
+echo ""
+echo "The newly built sudo executable can be found in the directory:"
+echo "        $BUILD"
+echo ""
+echo "It can be installed with:"
+echo "        sudo make -C '$BUILD' install"
+echo ""
+echo "IMPORTANT: running the above install WILL REPLACE YOUR EXISTING sudo!!!"
+echo ""
+echo "Try the following to see what will be installed without installing:"
+echo "        make -C '$BUILD' -n install"
+echo ""
+echo "Note that the DESTDIR=/some/dir option can be used to perform a test"
+echo "install to a different location first like so:"
+echo "        sudo make -C '$BUILD' DESTDIR=/tmp/testsudo install"
+echo ""
+echo "Using a test installation first can help decide whether or not to go"
+echo "ahead with a normal installation."
+echo ""
