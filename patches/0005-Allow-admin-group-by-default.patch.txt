@@ -1,0 +1,22 @@
+Subject: [PATCH] Allow admin group by default
+
+On OS X members of the admin group are by default allowed to run sudo.
+---
+ sudoers.in | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/sudoers.in b/sudoers.in
+index 42e639e8..a391cf44 100644
+--- a/sudoers.in
++++ b/sudoers.in
+@@ -70,6 +70,7 @@
+ ## User privilege specification
+ ##
+ root ALL=(ALL) ALL
++%admin	ALL=(ALL) ALL
+ 
+ ## Uncomment to allow members of group wheel to execute any command
+ # %wheel ALL=(ALL) ALL
+-- 
+1.8.3
+

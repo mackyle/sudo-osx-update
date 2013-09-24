@@ -1,0 +1,23 @@
+Subject: [PATCH] Restore sudoers samples
+
+The OS X version includes these sample lines so go ahead and
+restore them for maximum compatibility.
+---
+ sudoers.in | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/sudoers.in b/sudoers.in
+index 9d42601e..a445cc1f 100644
+--- a/sudoers.in
++++ b/sudoers.in
+@@ -102,3 +102,7 @@ root ALL=(ALL) ALL
+ ## Read drop-in files from @sysconfdir@/sudoers.d
+ ## (the '#' here does not indicate a comment)
+ #includedir @sysconfdir@/sudoers.d
++
++# Samples
++# %users  ALL=/sbin/mount /cdrom,/sbin/umount /cdrom
++# %users  localhost=/sbin/shutdown -h now
+-- 
+1.8.3
+

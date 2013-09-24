@@ -1,0 +1,37 @@
+Subject: [PATCH] Disable tty_tickets by default
+
+On OS X tty_tickets are disabled by default.
+---
+ defaults.c     | 2 +-
+ sudoers.man.in | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/defaults.c b/defaults.c
+index 92e2ed62..64b22745 100644
+--- a/defaults.c
++++ b/defaults.c
+@@ -401,7 +401,7 @@ init_defaults()
+     def_mail_no_perms = TRUE;
+ #endif
+ #ifndef NO_TTY_TICKETS
+-    def_tty_tickets = TRUE;
++    def_tty_tickets = FALSE;
+ #endif
+ #ifndef NO_LECTURE
+     def_lecture = once;
+diff --git a/sudoers.man.in b/sudoers.man.in
+index f106584c..ef168839 100644
+--- a/sudoers.man.in
++++ b/sudoers.man.in
+@@ -1901,7 +1901,7 @@ will use a file named for the tty the user is
+ logged in on in the user's time stamp directory.
+ If disabled, the time stamp of the directory is used instead.
+ This flag is
+-\fI@tty_tickets@\fR
++\fIoff\fR
+ by default.
+ .TP 18n
+ umask_override
+-- 
+1.8.3
+

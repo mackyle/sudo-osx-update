@@ -1,0 +1,31 @@
+Subject: [PATCH] Friendlier warning on first usage
+
+The OS X version of sudo uses a different first-time message.
+---
+ check.c | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/check.c b/check.c
+index 4c9ed85b..005467fc 100644
+--- a/check.c
++++ b/check.c
+@@ -222,12 +222,11 @@ lecture(status)
+ 	fclose(fp);
+     } else {
+ 	(void) fputs("\n\
+-We trust you have received the usual lecture from the local System\n\
+-Administrator. It usually boils down to these three things:\n\
++WARNING: Improper use of the sudo command could lead to data loss\n\
++or the deletion of important system files. Please double-check your\n\
++typing when using sudo. Type \"man sudo\" for more information.\n\
+ \n\
+-    #1) Respect the privacy of others.\n\
+-    #2) Think before you type.\n\
+-    #3) With great power comes great responsibility.\n\n",
++To proceed, enter your password, or type Ctrl-C to abort.\n\n",
+     stderr);
+     }
+ }
+-- 
+1.8.3
+

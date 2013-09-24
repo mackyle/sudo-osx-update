@@ -1,0 +1,72 @@
+Subject: [PATCH] Clean the environment
+
+The OS X version has a more limited white list but does include
+OS X specific variables such as __CF_USER_TEXT_ENCODING in its
+default sudoers file.
+---
+ env.c       |  2 ++
+ sudo.man.in |  7 ++++++-
+ sudoers.in  | 13 +++++++++++++
+ 3 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/env.c b/env.c
+index 52dff6db..fc554bf1 100644
+--- a/env.c
++++ b/env.c
+@@ -220,9 +220,11 @@ static const char *initial_checkenv_table[] = {
+ static const char *initial_keepenv_table[] = {
+     "COLORS",
+     "DISPLAY",
++    "HOME",
+     "HOSTNAME",
+     "KRB5CCNAME",
+     "LS_COLORS",
++    "MAIL",
+     "PATH",
+     "PS1",
+     "PS2",
+diff --git a/sudo.man.in b/sudo.man.in
+index f88e4123..7f4eb4db 100644
+--- a/sudo.man.in
++++ b/sudo.man.in
+@@ -834,7 +834,12 @@ The list of environment variables that
+ allows or denies is
+ contained in the output of
+ ``\fRsudo -V\fR''
+-when run as root.
++when run as root.  This list reflects the built-in defaults,
++which may be overridden in \fIsudoers\fR.
++.PP
++On OS X, \fIsudoers\fR has been configured to only whitelist a small set
++of environment variables by default.  See the \fIsudoers\fR file for more
++information.
+ .PP
+ Note that the dynamic linker on most operating systems will remove
+ variables that can control dynamic linking from the environment of
+diff --git a/sudoers.in b/sudoers.in
+index a391cf44..9d42601e 100644
+--- a/sudoers.in
++++ b/sudoers.in
+@@ -61,6 +61,19 @@
+ # Defaults!/usr/bin/sudoreplay !log_output
+ # Defaults!/usr/local/bin/sudoreplay !log_output
+ # Defaults!/sbin/reboot !log_output
++Defaults	env_reset
++Defaults	env_keep += "BLOCKSIZE"
++Defaults	env_keep += "COLORFGBG COLORTERM"
++Defaults	env_keep += "__CF_USER_TEXT_ENCODING"
++Defaults	env_keep += "CHARSET LANG LANGUAGE LC_ALL LC_COLLATE LC_CTYPE"
++Defaults	env_keep += "LC_MESSAGES LC_MONETARY LC_NUMERIC LC_TIME"
++Defaults	env_keep += "LINES COLUMNS"
++Defaults	env_keep += "LSCOLORS"
++Defaults	env_keep += "SSH_AUTH_SOCK"
++Defaults	env_keep += "TZ"
++Defaults	env_keep += "DISPLAY XAUTHORIZATION XAUTHORITY"
++Defaults	env_keep += "EDITOR VISUAL"
++Defaults	env_keep += "HOME MAIL"
+ 
+ ##
+ ## Runas alias specification
+-- 
+1.8.3
+

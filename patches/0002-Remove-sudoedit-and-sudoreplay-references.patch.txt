@@ -1,0 +1,142 @@
+Subject: [PATCH] Remove sudoedit and sudoreplay references and various
+ installs
+
+The OS X version of sudo omits both sudoedit and sudoreplay.
+The sudoedit functionality is still available via "sudo -e".
+
+Do not attempt to install sudoedit, sudoreplay or the doc files
+as they are not part of the normal OS X installation.
+
+Also make sure sudo gets installed with mode 04511 instead of
+mode 04111 for "securityserver_workaround_3273205".
+
+Do not create the noexec dir during install since it's not used
+on OS X and using --with-noexec=no will otherwise cause a directory
+named "no" to be created at install time.
+
+Do not create the sudoers.d directory at install time since it
+will never be used by the standard sudoers file.
+---
+ Makefile.in | 26 +++++---------------------
+ sudo.man.in | 21 +--------------------
+ 2 files changed, 6 insertions(+), 41 deletions(-)
+
+diff --git a/Makefile.in b/Makefile.in
+index 7ea18868..ea30212b 100644
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -690,53 +690,37 @@ install: pre-install install-dirs install-binaries @INSTALL_NOEXEC@ install-sudo
+ 
+ install-dirs:
+ 	$(SHELL) $(srcdir)/mkinstalldirs $(DESTDIR)$(sudodir) \
+-	    $(DESTDIR)$(visudodir) $(DESTDIR)$(noexecdir) \
+-	    $(DESTDIR)$(sudoersdir) $(DESTDIR)$(docdir) \
++	    $(DESTDIR)$(visudodir) \
++	    $(DESTDIR)$(sudoersdir) \
+ 	    $(DESTDIR)$(mandirsu) $(DESTDIR)$(mandirform) \
+ 	    `echo $(DESTDIR)$(timedir)|sed 's,/[^/]*$$,,'`
+ 	$(INSTALL) -d -O $(install_uid) -G $(install_gid) -m 0700 $(DESTDIR)$(timedir)
+ 
+ install-binaries: install-dirs $(PROGS)
+ 	if [ X"$$SUDO_PREINSTALL_CMD" != X"" ]; then exec $$SUDO_PREINSTALL_CMD sudo; fi
+-	$(INSTALL) -b~ -O $(install_uid) -G $(install_gid) -M 04755 sudo $(DESTDIR)$(sudodir)/sudo
+-	rm -f $(DESTDIR)$(sudodir)/sudoedit
+-	ln -s sudo $(DESTDIR)$(sudodir)/sudoedit
+-	if [ -f sudoreplay ]; then $(INSTALL) -b~ -O $(install_uid) -G $(install_gid) -m 0755 sudoreplay $(DESTDIR)$(sudodir)/sudoreplay; fi
+-	$(INSTALL) -b~ -O $(install_uid) -G $(install_gid) -m 0755 visudo $(DESTDIR)$(visudodir)/visudo
+-	if [ -f sesh ]; then $(INSTALL) -b~ -O $(install_uid) -G $(install_gid) -m 0755 sesh $(DESTDIR)$(libexecdir)/sesh; fi
++	$(INSTALL) -O $(install_uid) -G $(install_gid) -M 4511 -s sudo $(DESTDIR)$(sudodir)/sudo
++	$(INSTALL) -O $(install_uid) -G $(install_gid) -M 0111 -s visudo $(DESTDIR)$(visudodir)/visudo
+ 
+ install-noexec: install-dirs libsudo_noexec.la
+ 	if [ -f .libs/lib$(noexecfile) ]; then $(INSTALL) -b~ -O $(install_uid) -G $(install_gid) -m $(shlib_mode) .libs/lib$(noexecfile) $(DESTDIR)$(noexecdir)/$(noexecfile); fi
+ 
+ install-sudoers: install-dirs
+-	$(INSTALL) -d -O $(sudoers_uid) -G $(sudoers_gid) -m 0750 \
+-	    $(DESTDIR)$(sudoersdir)/sudoers.d
+ 	test -f $(DESTDIR)$(sudoersdir)/sudoers || \
+ 	    $(INSTALL) -O $(sudoers_uid) -G $(sudoers_gid) -m $(sudoers_mode) \
+ 		sudoers $(DESTDIR)$(sudoersdir)/sudoers
+ 
+ install-doc: install-dirs ChangeLog
+-	(cd $(srcdir) && for f in ChangeLog HISTORY LICENSE NEWS README TROUBLESHOOTING UPGRADE sample.*; do $(INSTALL) -O $(install_uid) -G $(install_gid) -m 0644 $$f $(DESTDIR)$(docdir); done)
+-	@LDAP@(cd $(srcdir) && for f in README.LDAP schema.* sudoers2ldif; do $(INSTALL) -O $(install_uid) -G $(install_gid) -m 0644 $$f $(DESTDIR)$(docdir); done)
+ 	$(INSTALL) -O $(install_uid) -G $(install_gid) -m 0644 @mansrcdir@/sudo.$(mantype) $(DESTDIR)$(mandirsu)/sudo.$(mansectsu)
+-	@REPLAY@$(INSTALL) -O $(install_uid) -G $(install_gid) -m 0644 @mansrcdir@/sudoreplay.$(mantype) $(DESTDIR)$(mandirsu)/sudoreplay.$(mansectsu)
+ 	$(INSTALL) -O $(install_uid) -G $(install_gid) -m 0644 @mansrcdir@/visudo.$(mantype) $(DESTDIR)$(mandirsu)/visudo.$(mansectsu)
+ 	$(INSTALL) -O $(install_uid) -G $(install_gid) -m 0644 @mansrcdir@/sudoers.$(mantype) $(DESTDIR)$(mandirform)/sudoers.$(mansectform)
+ 	@LDAP@$(INSTALL) -O $(install_uid) -G $(install_gid) -m 0644 @mansrcdir@/sudoers.ldap.$(mantype) $(DESTDIR)$(mandirform)/sudoers.ldap.$(mansectform)
+ 	@if test -n "$(MANCOMPRESS)"; then \
+-	    for f in $(mandirsu)/sudo.$(mansectsu) $(mandirsu)/sudoreplay.$(mansectsu) $(mandirsu)/visudo.$(mansectsu) $(mandirform)/sudoers.$(mansectform) $(mandirform)/sudoers.ldap.$(mansectform); do \
++	    for f in $(mandirsu)/sudo.$(mansectsu) $(mandirsu)/visudo.$(mansectsu) $(mandirform)/sudoers.$(mansectform) $(mandirform)/sudoers.ldap.$(mansectform); do \
+ 		if test -f $(DESTDIR)$$f; then \
+ 		    echo $(MANCOMPRESS) -f $(DESTDIR)$$f; \
+ 		    $(MANCOMPRESS) -f $(DESTDIR)$$f; \
+ 		fi; \
+ 	    done; \
+-	    rm -f $(DESTDIR)$(mandirsu)/sudoedit.$(mansectsu)$(MANCOMPRESSEXT); \
+-	    echo ln -s sudo.$(mansectsu)$(MANCOMPRESSEXT) $(DESTDIR)$(mandirsu)/sudoedit.$(mansectsu)$(MANCOMPRESSEXT); \
+-	    ln -s sudo.$(mansectsu)$(MANCOMPRESSEXT) $(DESTDIR)$(mandirsu)/sudoedit.$(mansectsu)$(MANCOMPRESSEXT); \
+-	else \
+-	    rm -f $(DESTDIR)$(mandirsu)/sudoedit.$(mansectsu); \
+-	    echo ln -s sudo.$(mansectsu) $(DESTDIR)$(mandirsu)/sudoedit.$(mansectsu); \
+-	    ln -s sudo.$(mansectsu) $(DESTDIR)$(mandirsu)/sudoedit.$(mansectsu); \
+ 	fi
+ 
+ check:
+diff --git a/sudo.man.in b/sudo.man.in
+index ee41822c..bc0460a1 100644
+--- a/sudo.man.in
++++ b/sudo.man.in
+@@ -25,8 +25,7 @@
+ .nh
+ .if n .ad l
+ .SH "NAME"
+-\fBsudo\fR,
+-\fBsudoedit\fR
++\fBsudo\fR
+ \- execute a command as another user
+ .SH "SYNOPSIS"
+ .HP 5n
+@@ -67,17 +66,6 @@
+ [\fBVAR\fR=\fIvalue\fR]
+ \fB\-i\fR\ |\ \fB\-s\fR
+ [\fIcommand\fR]
+-.br
+-.HP 9n
+-\fBsudoedit\fR
+-[\fB\-AnS\fR]
+-[\fB\-a\fR\ \fIauth_type\fR]
+-[\fB\-C\fR\ \fIfd\fR]
+-[\fB\-c\fR\ \fIclass\fR\ |\ \fI-\fR]
+-[\fB\-g\fR\ \fIgroup\ name\fR\ |\ \fI#gid\fR]
+-[\fB\-p\fR\ \fIprompt\fR]
+-[\fB\-u\fR\ \fIuser\ name\fR\ |\ \fI#uid\fR]
+-file ...
+ .PD
+ .SH "DESCRIPTION"
+ \fBsudo\fR
+@@ -107,12 +95,6 @@ The default password prompt timeout is
+ \fR@password_timeout@\fR
+ minutes.
+ .PP
+-When invoked as
+-\fBsudoedit\fR,
+-the
+-\fB\-e\fR
+-option (described below), is implied.
+-.PP
+ The options are as follows:
+ .TP 12n
+ \fB\-A\fR
+@@ -1667,7 +1649,6 @@ stat(2),
+ login_cap(3),
+ passwd(@mansectform@),
+ sudoers(@mansectform@),
+-sudoreplay(@mansectsu@),
+ visudo(@mansectsu@)
+ .SH "HISTORY"
+ See the HISTORY file in the
+-- 
+1.8.3
+

@@ -1,0 +1,83 @@
+Subject: [PATCH] Add BSM auditing support
+
+At this point the only needed change for Apple is to avoid calling
+au_to_exec_args with a NULL argument and two missing audit_failure
+calls (and two comments).
+---
+ bsm_audit.c | 10 ++++++----
+ check.c     |  4 +++-
+ sudo.c      |  6 +++++-
+ 3 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/bsm_audit.c b/bsm_audit.c
+index 4aebe031..8f315f43 100644
+--- a/bsm_audit.c
++++ b/bsm_audit.c
+@@ -167,10 +167,12 @@ bsm_audit_failure(char **exec_args, char const *const fmt, va_list ap)
+ 	if (tok == NULL)
+ 		error(1, "au_to_subject: failed");
+ 	au_write(aufd, tok);
+-	tok = au_to_exec_args(exec_args);
+-	if (tok == NULL)
+-		error(1, "au_to_exec_args: failed");
+-	au_write(aufd, tok);
++	if (exec_args != NULL) {
++		tok = au_to_exec_args(exec_args);
++		if (tok == NULL)
++			error(1, "au_to_exec_args: failed");
++		au_write(aufd, tok);
++	}
+ 	(void) vsnprintf(text, sizeof(text), fmt, ap);
+ 	tok = au_to_text(text);
+ 	if (tok == NULL)
+diff --git a/check.c b/check.c
+index a3433638..4c9ed85b 100644
+--- a/check.c
++++ b/check.c
+@@ -759,9 +759,11 @@ get_authpw()
+ 	if ((pw = sudo_getpwnam(def_runas_default)) == NULL)
+ 	    log_fatal(0, "unknown user: %s", def_runas_default);
+     } else if (def_targetpw) {
+-	if (runas_pw->pw_name == NULL)
++	if (runas_pw->pw_name == NULL) {
++	    audit_failure(NULL, "unknown uid");
+ 	    log_fatal(NO_MAIL|MSG_ONLY, "unknown uid: %u",
+ 		(unsigned int) runas_pw->pw_uid);
++	}
+ 	pw_addref(runas_pw);
+ 	pw = runas_pw;
+     } else {
+diff --git a/sudo.c b/sudo.c
+index 1db99f4b..041b0e75 100644
+--- a/sudo.c
++++ b/sudo.c
+@@ -331,12 +331,14 @@ main(argc, argv, envp)
+ 
+     /* This goes after sudoers is parsed since it may have timestamp options. */
+     if (sudo_mode == MODE_KILL || sudo_mode == MODE_INVALIDATE) {
++	/* Not an audit event. */
+ 	remove_timestamp((sudo_mode == MODE_KILL));
+ 	goto done;
+     }
+ 
+     /* Is root even allowed to run sudo? */
+     if (user_uid == 0 && !def_root_sudo) {
++	/* Not an audit event. */
+ 	(void) fprintf(stderr,
+ 	    "Sorry, %s has been configured to not allow root to run it.\n",
+ 	    getprogname());
+@@ -603,8 +605,10 @@ init_vars(envp)
+     int nohostname;
+ 
+     /* Sanity check command from user. */
+-    if (user_cmnd == NULL && strlen(NewArgv[0]) >= PATH_MAX)
++    if (user_cmnd == NULL && strlen(NewArgv[0]) >= PATH_MAX) {
++	audit_failure(NULL, "pathname too long");
+ 	errorx(1, "%s: File name too long", NewArgv[0]);
++    }
+ 
+ #ifdef HAVE_TZSET
+     (void) tzset();		/* set the timezone if applicable */
+-- 
+1.8.3
+

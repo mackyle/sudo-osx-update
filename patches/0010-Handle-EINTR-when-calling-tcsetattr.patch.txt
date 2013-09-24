@@ -1,0 +1,56 @@
+Subject: [PATCH] Handle EINTR when calling tcsetattr
+
+The OS X version of sudo properly handles EINTR when returned from
+tcsetattr in the term_restore and term_noecho functions by simply
+repeating the function call again.
+---
+ term.c | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/term.c b/term.c
+index 4aa71284..596d79d2 100644
+--- a/term.c
++++ b/term.c
+@@ -16,6 +16,7 @@
+ 
+ #include <config.h>
+ 
++#include <sys/errno.h>
+ #include <sys/types.h>
+ #include <sys/param.h>
+ #include <stdio.h>
+@@ -111,8 +112,13 @@ term_restore(fd, flush)
+     if (changed) {
+ 	int flags = TCSASOFT;
+ 	flags |= flush ? TCSAFLUSH : TCSADRAIN;
+-	if (tcsetattr(fd, flags, &oterm) != 0)
++	for (;;) {
++	    if (tcsetattr(fd, flags, &oterm) == 0)
++		break;
++	    if (errno == EINTR)
++		continue;
+ 	    return 0;
++	}
+ 	changed = 0;
+     }
+     return 1;
+@@ -129,9 +135,13 @@ term_noecho(fd)
+ #ifdef VSTATUS
+     term.c_cc[VSTATUS] = _POSIX_VDISABLE;
+ #endif
+-    if (tcsetattr(fd, TCSADRAIN|TCSASOFT, &term) == 0) {
+-	changed = 1;
+-	return 1;
++    for (;;) {
++	if (tcsetattr(fd, TCSADRAIN|TCSASOFT, &term) == 0) {
++	    changed = 1;
++	    return 1;
++	}
++	if (errno != EINTR)
++	    break;
+     }
+     return 0;
+ }
+-- 
+1.8.3
+

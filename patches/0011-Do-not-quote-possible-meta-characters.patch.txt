@@ -1,0 +1,46 @@
+Subject: [PATCH] Do not quote possible meta characters in shell mode
+
+Starting with sudo 1.7.3, possible meta characters are quoted by
+preceding with a \ when using shell mode.  Disable this so that
+the behavior continues to match that of versions 1.7.0-1.7.2*.
+
+For example, without this change the command:
+
+  sudo -s 'echo "${PWD+a  b}"'
+
+will produce an error something like:
+
+  /bin/bash: echo "${PWD+a  b}": command not found
+
+whereas when using versions 1.7.0-1.7.2*, it will produce output
+like so:
+
+  a  b
+
+Prior to version 1.7.0, when using shell mode an error would also
+be produced because "-c" was not being passed to the shell in that
+case.
+
+OS X expects the 1.7.0-1.7.2* behavior so restore the non-quoting
+semantics.
+---
+ sudo.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/sudo.c b/sudo.c
+index 041b0e75..22c59654 100644
+--- a/sudo.c
++++ b/sudo.c
+@@ -746,9 +746,6 @@ init_vars(envp)
+ 	    cmnd = dst = emalloc2(cmnd_size, 2);
+ 	    for (av = NewArgv; *av != NULL; av++) {
+ 		for (src = *av; *src != '\0'; src++) {
+-		    /* quote potential meta characters */
+-		    if (!isalnum((unsigned char)*src) && *src != '_' && *src != '-')
+-			*dst++ = '\\';
+ 		    *dst++ = *src;
+ 		}
+ 		*dst++ = ' ';
+-- 
+1.8.3
+

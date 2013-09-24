@@ -1,0 +1,49 @@
+Subject: [PATCH] Do not close fds on OS X
+
+The OS X version of sudo sets the close-on-exec flag for file descriptors
+to be closed rather than actually closing them.  It uses an opendir to
+/dev/fd instead of /proc/self/fd to enumerate the open fd values if
+possible rather than blindly trying them all.
+---
+ closefrom.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/closefrom.c b/closefrom.c
+index 68da392d..514311e5 100644
+--- a/closefrom.c
++++ b/closefrom.c
+@@ -79,7 +79,11 @@ closefrom_fallback(lowfd)
+ 	maxfd = OPEN_MAX;
+ 
+     for (fd = lowfd; fd < maxfd; fd++)
++#if 6497333
++	(void) fcntl((int) fd, F_SETFD, 1);
++#else
+ 	(void) close((int) fd);
++#endif
+ }
+ 
+ /*
+@@ -105,13 +109,17 @@ closefrom(lowfd)
+     char *endp;
+     long fd;
+ 
+-    /* Use /proc/self/fd directory if it exists. */
+-    if ((dirp = opendir("/proc/self/fd")) != NULL) {
++    /* Use /dev/fd directory if it exists. */
++    if ((dirp = opendir("/dev/fd")) != NULL) {
+ 	while ((dent = readdir(dirp)) != NULL) {
+ 	    fd = strtol(dent->d_name, &endp, 10);
+ 	    if (dent->d_name != endp && *endp == '\0' &&
+ 		fd >= 0 && fd < INT_MAX && fd >= lowfd && fd != dirfd(dirp))
++#if 6497333
++		(void) fcntl((int) fd, F_SETFD, 1);
++#else
+ 		(void) close((int) fd);
++#endif
+ 	}
+ 	(void) closedir(dirp);
+     } else
+-- 
+1.8.3
+
