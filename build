@@ -15,7 +15,7 @@
 #  ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 #  OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# build version 1.0
+# build version 1.0.1
 
 myname="$0"
 while [ -L "$myname" ]; do
@@ -80,6 +80,25 @@ if [ $osmaj -lt 9 ]; then
   SUDO_CONFIGURE="$SUDO_CONFIGURE"'  --disable-env-reset'
 fi
 
+# 10.4 ppc builds only ppc while 10.4 i386 builds i386/ppc
+# 10.5 builds i386/ppc
+# 10.6-10.7 builds x86_64/i386
+# 10.8 builds only x86_64
+ARCHS=
+if [ $osmaj -eq 8 ]; then
+  if [ "$(arch)" = "ppc" ]; then
+    ARCHS=ppc
+  else
+    ARCHS='i386 ppc'
+  fi
+elif [ $osmaj -eq 9 ]; then
+  ARCHS='i386 ppc'
+elif [ $osmaj -eq 10 -o $osmaj -eq 11 ]; then
+  ARCHS='x86_64 i386'
+elif [ $osmaj -ge 12 ]; then
+  ARCHS='x86_64'
+fi
+
 DOWNLOADS="$mydir/sources"
 BUILD="$mydir/sudo"
 
@@ -98,6 +117,11 @@ else
   # and it also needs uninteresting warnings suppressed
   LDFLAGS="$LDFLAGS -Wl,-w,-exported_symbols_list,.symbols_list"
 fi
+for arch in $ARCHS; do
+  CFLAGS="$CFLAGS -arch $arch"
+  LDFLAGS="$LDFLAGS -arch $arch"
+done
+export CFLAGS
 
 strip1=
 if ! (tar --strip-path=1 || : ) 2>&1 | grep -Eqi 'unrecognized option|not supported'; then
