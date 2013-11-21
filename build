@@ -57,15 +57,19 @@ SUDO_TGZ="$SUDO174p10"
 SUDO_MD5="$SUDO174p10_MD5"
 SUDO_SHA1="$SUDO174p10_SHA1"
 
-# Match Apple's sudo man pages use of the man macros for maximum compatibility
+# Match Apple's sudo man pages use of the man macros for maximum compatibility (--with-man)
 # Note that only 10.6.x embeds /etc/sudoers, all other OS X versions embed /private/etc/sudoers
 SUDO_CONFIGURE='--prefix=/usr --sysconfdir=/private/etc --with-timedir=/var/db/sudo --with-man'
 SUDO_CONFIGURE="$SUDO_CONFIGURE"' --with-noexec=no --with-bsm-audit --with-libraries=bsm --disable-static'
+# While it appears that 10.7.x and 10.8.x sudo were been built without the disable-setreuid, env-editor,
+# and password-timeout=0 options (which was apparently a mistake), 10.9.0 restores those options, so we
+# always add them even if building for 10.7.x/10.8.x.
+# The "--with-pam" option is redundant as it's automatically selected but we include it anyway to match
+# what the opensource.apple.com sources have listed.
+SUDO_CONFIGURE="$SUDO_CONFIGURE"' --with-pam --disable-setreuid --with-env-editor --with-password-timeout=0'
 # Since the OS X sudo installation does not include sudoreplay there's little point in allowing io logging
 SUDO_CONFIGURE="$SUDO_CONFIGURE"' --without-iologdir'
 if [ $osmaj -lt 11 ]; then
-  # Prior to OS X 10.7 --disable-setreuid, --with-env-editor and --with-password-timeout=0 were used
-  SUDO_CONFIGURE="$SUDO_CONFIGURE"' --disable-setreuid --with-env-editor --with-password-timeout=0'
   # Prior to OS X 10.7 the version of sudo used logged by default to the local2 facility so emulate that
   SUDO_CONFIGURE="$SUDO_CONFIGURE"' --with-logfac=local2' # otherwise current default is authpriv facility
 fi
@@ -83,7 +87,7 @@ fi
 # 10.4 ppc builds only ppc while 10.4 i386 builds i386/ppc
 # 10.5 builds i386/ppc
 # 10.6-10.7 builds x86_64/i386
-# 10.8 builds only x86_64
+# 10.8+ builds only x86_64
 ARCHS=
 if [ $osmaj -eq 8 ]; then
   if [ "$(arch)" = "ppc" ]; then

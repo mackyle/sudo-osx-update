@@ -6,7 +6,8 @@ The Apple version of the sudo sources can be found on the Apple Open Source
 site at http://opensource.apple.com/source/sudo/ in various subdirectories.
 
 OS X version 10.4.11 and 10.5.8 uses sudo-28, OS X version 10.6.8 uses sudo-46
-and OS X version 10.8.5 uses sudo-67.
+and OS X version 10.8.4 uses sudo-67.  OS X 10.7.5+security update and OS X
+10.8.5 use sudo-67.1 and OS X 10.9.0 uses sudo-72.
 
 The Apple sudo-16, sudo-17 and sudo-23 versions conveniently provide a set of
 patches (in the patches subdirectory) against an official sudo release tarball.

@@ -40,8 +40,9 @@ an updated sudo with a fix for CVE-2013-1775 [1] and OS X 10.8.5 that also
 contains the same fix.  However, although a 10.6.8 security update was released
 at the same time, it does NOT contain an updated sudo binary.  The updated sudo
 version provided by the 10.7.5 security update and OS X 10.8.5 (as shown by
-"sudo -V") is "1.7.4p6a".  As of this writing (2013-09-23) the Apple Open
-Source version of sudo corresponding to "1.7.4p6a" has not yet been posted.
+"sudo -V") is "1.7.4p6a".  The Apple Open Source version of sudo corresponding
+to "1.7.4p6a" has been posted on their site [3].  Note that OS X 10.9.0
+includes an sudo based on version 1.7.10p7.
 
 So any version of OS X prior to 10.7.5/10.8.5 whose admin user has run sudo for
 any reason (and has not subsequently run "sudo -K" or added a workaround of
@@ -90,3 +91,4 @@ References
 
 [1] http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2013-1775
 [2] http://www.sudo.ws/sudo/alerts/epoch_ticket.html
+[3] http://opensource.apple.com/source/sudo/sudo-67.1/
