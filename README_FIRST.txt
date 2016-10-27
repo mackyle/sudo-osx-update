@@ -89,6 +89,6 @@ before proceeding!!!
 References
 ----------
 
-[1] http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2013-1775
-[2] http://www.sudo.ws/sudo/alerts/epoch_ticket.html
-[3] http://opensource.apple.com/source/sudo/sudo-67.1/
+[1] <http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2013-1775>  
+[2] <http://www.sudo.ws/sudo/alerts/epoch_ticket.html>  
+[3] <http://opensource.apple.com/source/sudo/sudo-67.1/>  
